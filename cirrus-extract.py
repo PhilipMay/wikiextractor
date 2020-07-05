@@ -45,8 +45,6 @@ import logging
 # Program version
 version = '1.00'
 
-urlbase = 'http://it.wikipedia.org/'
-
 # ----------------------------------------------------------------------
 
 class NextFile(object):
@@ -71,8 +69,8 @@ class NextFile(object):
         return self._filepath()
 
     def _dirname(self):
-        char1 = self.dir_index % 26
-        char2 = self.dir_index / 26 % 26
+        char1 = int(self.dir_index % 26)
+        char2 = int(self.dir_index / 26 % 26)
         return os.path.join(self.path_name, '%c%c' % (ord('A') + char2, ord('A') + char1))
 
     def _filepath(self):
@@ -102,7 +100,7 @@ class OutputSplitter(object):
 
     def write(self, data):
         self.reserve(len(data))
-        self.file.write(data)
+        self.file.write(data.decode("utf-8"))
 
     def close(self):
         self.file.close()
@@ -113,28 +111,6 @@ class OutputSplitter(object):
         else:
             return open(filename, 'w')
 
-# ----------------------------------------------------------------------
-
-class Extractor(object):
-
-    def extract(self, out):
-        """
-        :param out: output file.
-        """
-        logging.debug("%s\t%s", self.id, self.title)
-        text = ''.join(self.page)
-        url = get_url(self.id)
-        header = '<doc id="%s" url="%s" title="%s" language="%s" revision="%s">\n' % (self.id, url, self.title, self.language, self.revision)
-        # Separate header from text with a newline.
-        header += self.title + '\n\n'
-        header = header.encode('utf-8')
-        footer = "\n</doc>\n"
-        out.write(header)
-        text = clean(self, text)
-        for line in compact(text):
-            out.write(line.encode('utf-8'))
-            out.write('\n')
-        out.write(footer)
 
 def process_dump(input_file, out_file, file_size, file_compress):
     """
@@ -168,18 +144,9 @@ def process_dump(input_file, out_file, file_size, file_compress):
         index = json.loads(line)
         content = json.loads(input.readline())
         type = index['index']['_type']
-        id = index['index']['_id']
-        language = content['language']
-        revision = content['version']
         if type == 'page' and content['namespace'] == 0:
-            title = content['title']
             text = content['text']
-            # drop references:
-            # ^ The Penguin Dictionary
-            text = re.sub(r'  \^ .*', '', text)
-            url = urlbase + 'wiki?curid=' + id
-            header = '<doc id="%s" url="%s" title="%s" language="%s" revision="%s">\n' % (id, url, title, language, revision)
-            page = header + title + '\n\n' + text + '\n</doc>\n'
+            page = text + '\n'
             output.write(page.encode('utf-8'))
 
 # ----------------------------------------------------------------------
